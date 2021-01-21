@@ -1,4 +1,5 @@
 import re
+from aiocqhttp import message
 import aiohttp
 import asyncio
 import feedparser
@@ -6,6 +7,8 @@ from PIL import Image
 from io import BytesIO
 import math
 import base64
+import nonebot
+from nonebot import on_command, CommandSession
 import hoshino
 import traceback
 import os
@@ -16,9 +19,10 @@ from html.parser import HTMLParser
 rss_news = {}
 
 data = {
-    'rsshub': 'https://rsshub.di.he.cn',
+    'rsshub': 'https://rss.impure.top',
     'proxy': '',
     'proxy_urls': [],
+    'white_list': ['bilibili', 'dianping', 'douban', 'jianshu', 'weibo', 'xiaohongshu', 'zhihu', 'gamer', 'yystv', 'vgtime', 'vgn', 'gouhuo', 'fgo', '3dm', 'lolapp', 'xiaoheihe'],
     'last_time': {},
     'group_rss': {},
     'group_mode': {},
@@ -34,7 +38,7 @@ rss mode 0/1 : 设置消息模式 标准/简略
 详细说明见项目主页: https://github.com/zyujs/rss
 '''
 
-sv = hoshino.Service('rss', bundle='pcr订阅', help_= HELP_MSG)
+sv = hoshino.Service('RSS订阅', bundle='pcr订阅', help_= HELP_MSG)
 
 def save_data():
     path = os.path.join(os.path.dirname(__file__), 'data.json')
@@ -66,22 +70,27 @@ def load_data():
                 data['proxy'] = d['proxy']
             if 'proxy_urls' in d:
                 data['proxy_urls'] = d['proxy_urls']
+            if 'white_list' in d:
+                data['white_list'] = d['white_list']
     except:
         traceback.print_exc()
     global default_rss
 
 load_data()
+whitelist_chars = '|'.join(data['white_list'])
+whitelist_regex = re.compile(f'.*/({whitelist_chars})/.*?')
 
 default_rss = [
-    data['rsshub'] + '/bilibili/user/dynamic/353840826',    #pcr官方号
+    #data['rsshub'] + '/bilibili/user/dynamic/353840826',    #pcr官方号
     ]
 
 async def query_data(url, proxy=''):
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, proxy=proxy) as resp:
+            async with session.get(url, proxy=proxy,timeout=10) as resp:
                 return await resp.read()
     except:
+        traceback.print_exc()
         return None
 
 def get_image_url(desc):
@@ -203,12 +212,12 @@ async def get_rss_news(rss_url):
         return news_list
     feed = feedparser.parse(res)
     if feed['bozo'] != 0:
-        sv.logger.info(f'rss解析失败 {rss_url}')
+        sv.logger.info(f'RSS解析失败:{rss_url}')
         return news_list
     if len(feed['entries']) == 0:
         return news_list
     if rss_url not in data['last_time']:
-        sv.logger.info(f'rss初始化 {rss_url}')
+        sv.logger.info(f'RSS初始化:{rss_url}')
         data['last_time'][rss_url] = get_latest_time(feed['entries'])
         return news_list
 
@@ -299,26 +308,26 @@ async def rss_add(group_id, rss_url):
     res = await query_data(rss_url, proxy)
     feed = feedparser.parse(res)
     if feed['bozo'] != 0:
-        return f'无法解析rss源:{rss_url}'
+        return f'无法解析RSS源: {rss_url.replace(data["rsshub"], "")}\n请确认路由地址、RSS地址、订阅参数或关注用户的隐私设置是否正确。如您确信正确，请联系维护组反馈。',1
         
     if group_id not in data['group_rss']:
         data['group_rss'][group_id] = default_rss
     if rss_url not in set(data['group_rss'][group_id]):
         data['group_rss'][group_id].append(rss_url)
     else:
-        return '订阅列表中已存在该项目'
+        return '订阅列表中已存在该项目。',1
     save_data()
-    return '添加成功'
+    return f'订阅 {rss_url.replace(data["rsshub"], "")} 添加成功。',0
 
 def rss_remove(group_id, i):
     group_id = str(group_id)
     if group_id not in data['group_rss']:
         data['group_rss'][group_id] = default_rss
     if i >= len(data['group_rss'][group_id]):
-        return '序号超出范围'
+        return '序号不正确，请重试。'
     data['group_rss'][group_id].pop(i)
     save_data()
-    return '删除成功\n当前' + rss_get_list(group_id)
+    return '删除成功。\n当前' + rss_get_list(group_id)
 
 def rss_get_list(group_id):
     group_id = str(group_id)
@@ -339,68 +348,147 @@ def rss_set_mode(group_id, mode):
     mode = int(mode)
     if mode > 0:
         data['group_mode'][group_id] = 1
-        msg = '已设置为简略模式'
+        msg = '已设置为简略模式。'
     else:
         data['group_mode'][group_id] = 0
-        msg = '已设置为标准模式'
+        msg = '已设置为标准模式。'
     save_data()
     return msg
 
-@sv.on_prefix('rss')
-async def rss_cmd(bot, ev):
+
+
+@sv.on_prefix('简略模式')
+async def simply_mode(bot,ev):
+    msg = ''
+    group_id = ev.group_id
+    args = ev.message.extract_plain_text().split()
+    is_admin = hoshino.priv.check_priv(ev, hoshino.priv.ADMIN)
+    
+    if not is_admin:
+        msg = '权限不足，更改推送模式需群管理员以上权限。'
+
+    if args[0] in ['open','enable','开启','启用','打开']:
+        msg = rss_set_mode(group_id, 1)
+    elif args[0] in ['close','disable','关闭','禁用']:
+        msg = rss_set_mode(group_id, 0)
+    
+    await bot.send(ev, msg)
+
+
+@sv.on_prefix('订阅列表')
+async def subscribe_list(bot,ev):
+    group_id = ev.group_id
+
+    await bot.send(ev,rss_get_list(group_id))
+
+
+@sv.on_prefix('删除订阅')
+async def delete_subscribe(bot,ev):
     msg = ''
     group_id = ev.group_id
     args = ev.message.extract_plain_text().split()
     is_admin = hoshino.priv.check_priv(ev, hoshino.priv.ADMIN)
 
-    if len(args) == 0:
-        msg = HELP_MSG
-    elif args[0] == 'help':
-        msg = HELP_MSG
-    elif args[0] == 'add':
-        if not is_admin:
-            msg = '权限不足'
-        elif len(args) >= 2:
-            msg = await rss_add(group_id, args[1])
-        else:
-            msg = '需要附带rss地址'
-    elif args[0] == 'addb' or  args[0] == 'add-bilibili':
-        if not is_admin:
-            msg = '权限不足'
-        elif len(args) >= 2 and args[1].isdigit():
-            rss_url = data['rsshub'] + '/bilibili/user/dynamic/' + str(args[1])
-            msg = await rss_add(group_id, rss_url)
-        else:
-            msg = '需要附带up主id'
-    elif args[0] == 'addr' or  args[0] == 'add-route':
-        if not is_admin:
-            msg = '权限不足'
-        elif len(args) >= 2:
-            rss_url = data['rsshub'] + args[1]
-            msg = await rss_add(group_id, rss_url)
-        else:
-            msg = '需要提供route参数'
-        pass
-    elif args[0] == 'remove' or args[0] == 'rm':
-        if not is_admin:
-            msg = '权限不足'
-        elif len(args) >= 2 and args[1].isdigit():
-            msg = rss_remove(group_id, int(args[1]))
-        else:
-            msg = '需要提供要删除rss订阅的序号'
-    elif args[0] == 'list' or args[0] == 'ls':
-        msg = rss_get_list(group_id)
-    elif args[0] == 'mode':
-        if not is_admin:
-            msg = '权限不足'
-        elif len(args) >= 2 and args[1].isdigit():
-            msg = rss_set_mode(group_id, args[1])
-        else:
-            msg = '需要附带模式(0/1)'
+    if not is_admin:
+        msg = '权限不足，删除需群管理员以上权限。'
+    elif len(args) == 1 and args[0].isdigit():
+            msg = rss_remove(group_id, int(args[0]))
     else:
-        msg = '参数错误'
+            msg = '请提供要删除RSS订阅的正确序号。'
+
     await bot.send(ev, msg)
 
-@sv.scheduled_job('interval', minutes=5)
+@sv.on_prefix('添加订阅')
+async def add_subscribe(bot,ev):
+    msg = ''
+    rss_url = None
+    group_id = ev.group_id
+    args = ev.message.extract_plain_text().split()
+    is_admin = hoshino.priv.check_priv(ev, hoshino.priv.ADMIN)
+    if not is_admin:
+        await bot.send(ev, '权限不足，添加需群管理员以上权限。')
+        return
+    if len(args) == 0:
+        await bot.send(ev, '请提供需订阅的RSS地址、路由地址或参数。')
+        return
+    elif len(args) == 1:
+        if args[0] in ['明日方舟', 'mrfz', '方舟', '粥游']:
+            rss_url = data['rsshub'] + '/arknights/news'
+        elif args[0] in ['原神', 'ys', '国产手游之光', '国产塞尔达']:
+            rss_url = data['rsshub'] + '/yuanshen'
+        elif whitelist_regex.fullmatch(args[0]):
+            if re.match(r'http[s]*?://.*',args[0]):
+                rss_url = args[0]
+            else:
+                rss_url = data['rsshub'] + args[0]
+        elif re.match(r'.*/.*/.*', args[0]):
+            await bot.send(ev, f'您所添加的路由/RSS不在白名单内，请等待维护组审核后为您添加。\n目前的白名单：\n{whitelist_chars}')
+            await bot.send_private_msg(user_id=hoshino.config.__bot__.SUPERUSERS[0], message=f'群{group_id}尝试添加如下不在白名单的订阅：\n{args[0]}\n请使用如下命令批准添加：')
+            await asyncio.sleep(1.5)
+            await bot.send_private_msg(user_id=hoshino.config.__bot__.SUPERUSERS[0], message=f'批准订阅 {group_id} {args[0]}')
+            return
+        else:
+            msg = '请输入正确的订阅参数。'
+    elif len(args) == 2:
+        if args[0] == '动态' and args[1].isdigit():
+            rss_url = data['rsshub'] + '/bilibili/user/dynamic/' + str(args[1])
+
+        elif args[0] == '追番' and args[1].isdigit():
+            rss_url = data['rsshub'] + '/bilibili/user/bangumi/' + str(args[1])
+
+        elif args[0] == '投稿' and args[1].isdigit():
+            rss_url = data['rsshub'] + '/bilibili/user/video/' + str(args[1])
+
+        elif args[0] == '专栏' and args[1].isdigit():
+            rss_url = data['rsshub'] + '/bilibili/user/article/' + str(args[1])
+
+        elif args[0] == '番剧' and args[1].isdigit():
+            rss_url = data['rsshub'] + \
+                '/bilibili/bangumi/media/' + str(args[1])
+
+        elif args[0] == '排行榜' and args[1].isdigit():
+            rss_url = data['rsshub'] + '/bilibili/ranking/' + str(args[1])
+
+        elif args[0] == '漫画' and args[1].isdigit():
+            rss_url = data['rsshub'] + '/bilibili/manga/update/' + str(args[1])
+
+        elif args[0] == '直播' and args[1].isdigit():
+            rss_url = data['rsshub'] + '/bilibili/live/room/' + str(args[1])
+            
+        elif args[0] in ['PCR','公主连结','公主联结','公主链接','公主连结','pcr']:
+            if args[1] == '台服动态':
+                rss_url = data['rsshub'] + '/pcr/news-tw'
+            if args[1] == '日服动态':
+                rss_url = data['rsshub'] + '/pcr/news'
+            if args[1] == '国服动态' or 'B服动态':
+                rss_url = data['rsshub'] + '/pcr/news-cn'
+        else:
+            msg = '请输入正确的订阅参数。' 
+    else:
+        msg = '请输入正确的订阅参数。'
+
+    if rss_url:
+        msg, status_code = await rss_add(group_id, rss_url)
+
+    await bot.send(ev, msg)
+
+
+@on_command('批准订阅')
+async def approve_subscribe(session: CommandSession):
+    args=session.current_arg.split()
+    bot = nonebot.get_bot()
+    if session.event.user_id not in hoshino.config.__bot__.SUPERUSERS:
+        return
+    if re.match(r'http[s]*?://.*', args[1]):
+        rss_url = args[1]
+    else:
+        rss_url = data['rsshub'] + args[1]
+    msg ,status_code = await rss_add(args[0], rss_url)
+    if status_code == 0:
+        await bot.send_group_msg(group_id=args[0],message=msg)
+    await session.send(msg)
+
+ 
+@sv.scheduled_job('interval', minutes=10)
 async def job():
     await group_process()

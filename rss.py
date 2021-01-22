@@ -22,20 +22,24 @@ data = {
     'rsshub': 'https://rss.impure.top',
     'proxy': '',
     'proxy_urls': [],
-    'white_list': ['bilibili', 'dianping', 'douban', 'jianshu', 'weibo', 'xiaohongshu', 'zhihu', 'gamer', 'yystv', 'vgtime', 'vgn', 'gouhuo', 'fgo', '3dm', 'lolapp', 'xiaoheihe'],
+    'white_list': ['bilibili', 'dianping', 'douban', 'jianshu', 'weibo', 'xiaohongshu', 'zhihu', 'gamer', 'yystv', 'vgtime', 'vgn', 'gouhuo', 'fgo', '3dm', 'lolapp', 'xiaoheihe','github'],
     'last_time': {},
     'group_rss': {},
     'group_mode': {},
 }
 
-HELP_MSG = '''rss订阅
-rss list : 查看订阅列表
-rss add rss地址 : 添加rss订阅
-rss addb up主id : 添加b站up主订阅
-rss addr route : 添加rsshub route订阅
-rss remove 序号 : 删除订阅列表指定项
-rss mode 0/1 : 设置消息模式 标准/简略
-详细说明见项目主页: https://github.com/zyujs/rss
+HELP_MSG = '''### 所有人都可以使用 :
+- `订阅列表` : 查看订阅列表
+### 仅限群管理员 :
+- `添加订阅 路由地址/RSS地址` : 添加一般的RSS订阅或路由订阅
+- `添加订阅 动态/追番/投稿/专栏 up主uid` : 添加b站up主订阅
+- `添加订阅 排行榜 分区id` : 添加b站排行榜订阅
+- `添加订阅 直播 房间号` : 添加b站直播间开播订阅
+- `添加订阅 漫画 漫画id` : 添加b站漫画订阅(漫画id:可在 URL 中找到, 支持带有mc前缀)
+- `添加订阅 明日方舟/原神` : 添加明日方舟/原神新闻订阅
+- `添加订阅 pcr 国/台/日服动态` : 添加公主连结国/台/日服动态订阅
+- `删除订阅 订阅序号`: 删除订阅列表指定项
+- `简略模式 启用/禁用` : 设置推送消息模式:启用,推送消息仅包含标题;禁用,推送消息包含详情及图片
 '''
 
 sv = hoshino.Service('RSS订阅', bundle='pcr订阅', help_= HELP_MSG)
@@ -371,6 +375,8 @@ async def simply_mode(bot,ev):
         msg = rss_set_mode(group_id, 1)
     elif args[0] in ['close','disable','关闭','禁用']:
         msg = rss_set_mode(group_id, 0)
+    else:
+        msg = '请输入正确的指令。'
     
     await bot.send(ev, msg)
 
@@ -423,7 +429,7 @@ async def add_subscribe(bot,ev):
                 rss_url = data['rsshub'] + args[0]
         elif re.match(r'.*/.*/.*', args[0]):
             await bot.send(ev, f'您所添加的路由/RSS不在白名单内，请等待维护组审核后为您添加。\n目前的白名单：\n{whitelist_chars}')
-            await bot.send_private_msg(user_id=hoshino.config.__bot__.SUPERUSERS[0], message=f'群{group_id}尝试添加如下不在白名单的订阅：\n{args[0]}\n请使用如下命令批准添加：')
+            await bot.send_private_msg(user_id=hoshino.config.__bot__.SUPERUSERS[0], message=f'群{group_id}尝试添加如下不在白名单的订阅：\n{args[0]}\n请使用以下命令批准添加：')
             await asyncio.sleep(1.5)
             await bot.send_private_msg(user_id=hoshino.config.__bot__.SUPERUSERS[0], message=f'批准订阅 {group_id} {args[0]}')
             return

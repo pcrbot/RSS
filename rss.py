@@ -16,13 +16,15 @@ import json
 import time
 from html.parser import HTMLParser
 
+path = os.path.join(os.path.expanduser('~/.hoshino/'), 'data.json')
+
 rss_news = {}
 
 data = {
     'rsshub': 'https://rss.impure.top',
     'proxy': '',
     'proxy_urls': [],
-    'white_list': ['bilibili', 'dianping', 'douban', 'jianshu', 'weibo', 'xiaohongshu', 'zhihu', 'gamer', 'yystv', 'vgtime', 'vgn', 'gouhuo', 'fgo', '3dm', 'lolapp', 'xiaoheihe','github'],
+    'white_list': ['bilibili', 'dianping', 'douban', 'jianshu', 'weibo', 'xiaohongshu', 'zhihu', 'gamer', 'yystv', 'vgtime', 'vgn', 'gouhuo', 'fgo', '3dm', 'lolapp', 'xiaoheihe', 'github', 'douyu', 'huya', 'zhanqi', 'acfun'],
     'last_time': {},
     'group_rss': {},
     'group_mode': {},
@@ -45,7 +47,6 @@ HELP_MSG = '''### 所有人都可以使用 :
 sv = hoshino.Service('RSS订阅', bundle='pcr订阅', help_= HELP_MSG)
 
 def save_data():
-    path = os.path.join(os.path.dirname(__file__), 'data.json')
     try:
         with open(path, 'w', encoding='utf8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -53,7 +54,6 @@ def save_data():
         traceback.print_exc()
 
 def load_data():
-    path = os.path.join(os.path.dirname(__file__), 'data.json')
     if not os.path.exists(path):
         save_data()
         return
@@ -468,6 +468,10 @@ async def add_subscribe(bot,ev):
                 rss_url = data['rsshub'] + '/pcr/news'
             if args[1] == '国服动态' or 'B服动态':
                 rss_url = data['rsshub'] + '/pcr/news-cn'
+        elif args[0] == '斗鱼直播' and args[1].isdigit():
+            rss_url = data['rsshub'] + '/douyu/room/' + str(args[1])
+        elif args[0] == '虎牙直播' and args[1].isdigit():
+            rss_url = data['rsshub'] + '/huya/live/' + str(args[1])
         else:
             msg = '请输入正确的订阅参数。' 
     else:
@@ -495,6 +499,6 @@ async def approve_subscribe(session: CommandSession):
     await session.send(msg)
 
  
-@sv.scheduled_job('interval', minutes=10)
+@sv.scheduled_job('interval', minutes=5)
 async def job():
     await group_process()

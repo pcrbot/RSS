@@ -1,2 +1,5 @@
-feedparser~=5.2
-pillow~=6.2
+httpx==0.16.1
+feedparser==5.2.1
+nonebot==1.6.0
+peewee==3.13.3
+Pillow==8.1.0

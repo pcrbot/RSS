@@ -16,21 +16,21 @@ BASE_URL = BASE_URL.rstrip('/') if BASE_URL.endswith('/') else BASE_URL
 async def add_subscribe(url,group_id):
     try:
         if rssdata.select().where(rssdata.url == url, rssdata.group == group_id).exists():
-            msg = "添加订阅失败：本群已存在相同订阅。"
+            msg = "新增订阅失败：本群已存在相同订阅。"
             return msg
         else:
             pass
     except Exception as e:
         sv.logger.exception(e)
         sv.logger.error(type(e))
-        msg = '添加订阅失败：订阅数据库操作失败，请稍后再试。若反复出现，请联系维护组反馈。'
+        msg = '新增订阅失败：订阅数据库操作失败，请稍后再试。若反复出现，请联系维护组反馈。'
         return msg
 
     rss = RSS(url)
     await rss.feed()
 
     if (not rss.has_entries) or rss.feed_bozo != 0:
-        msg = '添加订阅失败：无法解析该RSS。请确认路由地址、RSS地址、订阅参数或关注用户的隐私设置是否正确。如您确信正确，请联系维护组反馈。'
+        msg = '新增订阅失败：无法解析该RSS。请确认路由地址、RSS地址、订阅参数或关注用户的隐私设置是否正确。如您确信正确，请联系维护组反馈。'
         return msg
 
     try:
@@ -39,10 +39,10 @@ async def add_subscribe(url,group_id):
     except Exception as e:
         sv.logger.exception(e)
         sv.logger.error(type(e))
-        msg = '添加订阅失败：订阅数据库操作失败，请稍后再试。若反复出现，请联系维护组反馈。'
+        msg = '新增订阅失败：订阅数据库操作失败，请稍后再试。若反复出现，请联系维护组反馈。'
         return msg
 
-    msg = f'添加订阅{url.replace(BASE_URL,"")}成功。'
+    msg = f'新增订阅{url.replace(BASE_URL,"")}成功。'
     return msg
 
 
@@ -89,10 +89,10 @@ async def addrss(bot, ev):
     args = ev.message.extract_plain_text().split()
     is_admin = hoshino.priv.check_priv(ev, hoshino.priv.ADMIN)
     if not is_admin:
-        await bot.send(ev, '添加订阅失败：权限不足，添加需群管理员以上权限。')
+        await bot.send(ev, '新增订阅失败：权限不足，添加需群管理员以上权限。')
         return
     if len(args) == 0:
-        await bot.send(ev, '添加订阅失败：请提供需订阅的RSS地址、路由地址或参数。')
+        await bot.send(ev, '新增订阅失败：请提供需订阅的RSS地址、路由地址或参数。')
         return
     elif len(args) == 1:
         if args[0] in ['明日方舟', 'mrfz', '方舟', '粥游']:
@@ -100,7 +100,7 @@ async def addrss(bot, ev):
         elif args[0] in ['原神', 'ys', '国产手游之光', '国产塞尔达']:
             rss_url = BASE_URL + '/yuanshen'
         else:
-            msg = '添加订阅失败：请输入正确的订阅参数。'
+            msg = '新增订阅失败：请输入正确的订阅参数。'
     elif len(args) == 2:
         if args[0] == '动态' and args[1].isdigit():
             rss_url = BASE_URL + '/bilibili/user/dynamic/' + str(args[1])
@@ -139,9 +139,9 @@ async def addrss(bot, ev):
         elif args[0] == '虎牙直播' and args[1].isdigit():
             rss_url = BASE_URL + '/huya/live/' + str(args[1])
         else:
-            msg = '添加订阅失败：请输入正确的订阅参数。'
+            msg = '新增订阅失败：请输入正确的订阅参数。'
     else:
-        msg = '添加订阅失败：请输入正确的订阅参数。'
+        msg = '新增订阅失败：请输入正确的订阅参数。'
 
     if rss_url:
         msg = await add_subscribe(rss_url, group_id)

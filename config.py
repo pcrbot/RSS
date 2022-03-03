@@ -1,4 +1,4 @@
-BASE_URL = "https://rss.impure.top/" # RSSHub 根目录
+BASE_URL = "" # RSSHub 根目录
 USE_PROXY = False # 是否使用代理
 
 

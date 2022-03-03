@@ -2,7 +2,8 @@
 
 ## 简介
 
-利用peewee和feedparser实现的rss推送插件，适用于HoshinoBot。
+利用peewee和feedparser实现的rss推送插件，适用于HoshinoBot。  
+修改自https://github.com/zyujs/rss
 
 ## 安装方法
 

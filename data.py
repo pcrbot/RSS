@@ -52,7 +52,7 @@ class RSS:
         raw_images = []
         num = 0
         for url in url_list:
-            url = HTMLParser().unescape(url)
+            url = html.unescape(url)
             image = (await get(url, params={'timeout': 5})).content
             if image:
                 try:

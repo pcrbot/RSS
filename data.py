@@ -1,7 +1,7 @@
 import math
 import re
 import time
-from html.parser import HTMLParser
+import html
 from io import BytesIO
 from typing import Dict, Optional
 
@@ -52,7 +52,7 @@ class RSS:
         raw_images = []
         num = 0
         for url in url_list:
-            url = HTMLParser().unescape(url)
+            url = html.unescape(url)
             image = (await get(url, params={'timeout': 5})).content
             if image:
                 try:
@@ -125,7 +125,7 @@ class RSS:
     @staticmethod
     async def _get_rssdic(entry: FeedParserDict) -> Dict:
         ret = {'title': entry.title,
-               'time': entry.updated,
+               'time': entry.published,
                'content': RSS.remove_html(entry.summary).replace('//转发自:', '\n//转发自:'),
                'image': await RSS.generate_image(RSS.get_image_url(entry.summary)),
                'link': entry.link}

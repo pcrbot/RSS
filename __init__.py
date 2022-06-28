@@ -126,6 +126,9 @@ async def addrss(bot, ev):
 
         elif args[0] == '直播' and args[1].isdigit():
             rss_url = BASE_URL + '/bilibili/live/room/' + str(args[1])
+            
+        elif args[0] == '微博' and args[1].isdigit():
+            rss_url = BASE_URL + '/weibo/user/' + str(args[1])
 
         elif args[0] in ['PCR', '公主连结', '公主联结', '公主链接', '公主连结', 'pcr']:
             if args[1] == '台服动态':
